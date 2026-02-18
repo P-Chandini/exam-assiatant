@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Select Exam</title>
+    <style>
+        :root { --primary: #3b82f6; --success: #22c55e; --bg: #f3f4f6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Blue Header */
+        .navbar { background-color: var(--primary); color: white; padding: 30px; text-align: center; position: relative; }
+        .navbar h1 { margin: 0; font-size: 2rem; }
+        .logout { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); color: #fee2e2; text-decoration: none; font-weight: bold; }
+
+        /* Centered Card */
+        .container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        .card h2 { margin-bottom: 30px; color: #374151; }
+
+        /* Form Styling */
+        .form-group { text-align: left; margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #4b5563; }
+        input, select { 
+            width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; 
+            font-size: 1rem; box-sizing: border-box; outline: none; transition: 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+
+        .start-btn { 
+            width: 100%; background-color: var(--success); color: white; border: none; 
+            padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; 
+            cursor: pointer; margin-top: 10px; transition: 0.2s;
+        }
+        .start-btn:hover { background-color: #16a34a; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <h1>Assistive Examination System</h1>
+        <a href="/logout" class="logout">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2>Welcome to your Dashboard</h2>
+            
+            <form action="/exam" method="GET">
+                <div class="form-group">
+                    <label>Exam Name</label>
+                    <input type="text" name="name" placeholder="e.g. Final Mathematics" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Select Language</label>
+                    <select name="lang" required>
+                        <option value="" disabled selected>Choose Language...</option>
+                        <option value="en-US">English</option>
+                        <option value="hi-IN">Hindi</option>
+                        <option value="te-IN">Telugu</option>
+                        <option value="ur-PK">Urdu</option>
+                        <option value="ta-IN">Tamil</option>
+                        <option value="ml-IN">Malayalam</option>
+                        <option value="sa-IN">Sanskrit</option>
+                        <option value="kn-IN">Kannada</option>
+                        <option value="zh-CN">Mandarin</option>
+                        <option value="ko-KR">Korean</option>
+                        <option value="ja-JP">Japanese</option>
+                        <option value="th-TH">Thai</option>
+                        <option value="es-ES">Spanish</option>
+                        <option value="fr-FR">French</option>
+                        <option value="ar-SA">Arabic</option>
+                        <option value="bn-IN">Bengali</option>
+                        <option value="ru-RU">Russian</option>
+                        <option value="pt-PT">Portuguese</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="start-btn">Start Exam</button>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

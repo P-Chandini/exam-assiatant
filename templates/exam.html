@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Ultimate Multilingual Secure Exam</title>
+	<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+	<style>
+		:root { --primary: #2563eb; --sidebar: #ffffff; --bg: #f1f5f9; }
+		body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+		.header { background: #1e293b; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+		.layout { display: flex; flex: 1; overflow: hidden; }
+
+		.toolbox { width: 220px; background: var(--sidebar); border-right: 1px solid #cbd5e1; padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+		.tool-btn { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; text-align: left; transition: 0.2s; }
+		.tool-btn:hover { background: #f8fafc; border-color: var(--primary); }
+
+		#videoPreview { width: 100%; border-radius: 8px; background: #000; transform: scaleX(-1); border: 2px solid #cbd5e1; height: 100px; object-fit: cover; }
+		.violation-card { background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center; border: 1px solid #f87171; font-size: 0.8rem; }
+
+		.workspace { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative; overflow-y: auto; }
+		#mathOutput { 
+			width: 100%; max-width: 1000px; height: 420px; padding: 20px; border-radius: 12px; 
+			background: white; border: 2px solid #e2e8f0; 
+			font-family: "Times New Roman", Times, serif !important; 
+			font-size: 1.35rem; line-height: 1.45; overflow-y: auto; outline: none; box-sizing: border-box; 
+		}
+
+		.status-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; margin-top: 5px; font-weight: bold; }
+		.status-wait { background: #fef3c7; color: #92400e; }
+		.status-active { background: #dcfce7; color: #166534; }
+
+		/* Table workspace styles (from table.html) */
+		:root { --tbl-primary: #2563eb; --tbl-success: #10b981; --tbl-danger: #ef4444; --tbl-dark: #1e293b; --tbl-border: #e2e8f0; --tbl-bg: #f8fafc; }
+		.table-workspace-container { max-width: 1000px; margin: 0 auto; background: white; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: 90vh; position: relative; }
+		.table-ws-header { padding: 15px 30px; border-bottom: 1px solid var(--tbl-border); display: flex; justify-content: space-between; align-items: center; background: #fff; z-index: 10; }
+		.table-config-panel { padding: 20px 30px; background: #fff; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; border-bottom: 1px solid var(--tbl-border); }
+		.table-input-group { display: flex; flex-direction: column; gap: 5px; }
+		.table-input-group label { font-size: 0.8rem; font-weight: 600; color: #64748b; }
+		.table-input-group input { padding: 10px; border: 1px solid var(--tbl-border); border-radius: 8px; font-size: 1rem; }
+		.table-btn-main { background: var(--tbl-primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+		.table-gallery-area { flex: 1; padding: 25px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+		.table-thumb { background: white; border: 2px solid var(--tbl-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; }
+		.table-thumb:hover { border-color: var(--tbl-primary); transform: translateY(-3px); }
+		/* overlay used by table editor (and inline version) */
+		#editorOverlay, #tbl_editorOverlay { display: none; position: absolute; inset: 0; background: white; z-index: 1300; display:flex; flex-direction:column; }
+		.editor-header { padding: 15px 30px; background: #f8fafc; border-bottom: 1px solid var(--tbl-border); display: flex; justify-content: space-between; align-items: center; }
+		/* center the table in the content area */
+		.editor-content { flex: 1; padding: 40px; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+		/* footer pinned to bottom */
+		.editor-footer { margin-top: auto; padding: 20px 30px; border-top: 1px solid var(--tbl-border); display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+		table.exam-table { border-collapse: collapse; background: white; min-width: 300px; margin: 0 auto; }
+		table.exam-table td { border: 1px solid #cbd5e1; padding: 15px; outline: none; min-width: 100px; text-align: center; }
+		table.exam-table { border-collapse: collapse; background: white; min-width: 300px; }
+		table.exam-table td { border: 1px solid #cbd5e1; padding: 15px; outline: none; min-width: 100px; text-align: center; }
+		table.exam-table td.focused-cell { background: #eff6ff !important; border: 2px solid var(--tbl-primary); }
+
+		/* FIXED DRAWING OVERLAY STYLE */
+		#drawingOverlay {
+			display: none;
+			width: 100%;
+			height: 100%;
+			background: white;
+			border-radius: 12px;
+			overflow: hidden;
+			border: 2px solid #cbd5e1;
+			z-index: 1000;
+		}
+
+		/* Table editor buttons */
+		.editor-footer { display:flex !important; flex-direction:row !important; gap:10px !important; justify-content:center !important; align-items:center !important; flex-wrap:wrap; padding:20px 30px; }
+		.btn-tool { display:inline-flex; align-items:center; justify-content:center; padding:8px 14px; border-radius:8px; border:1px solid var(--tbl-border); background:white; cursor:pointer; font-weight:700; }
+		.btn-tool.btn-save { background:#10b981; color:white; border:none; }
+		.btn-tool.btn-delete-struct { background:#ef4444; color:white; border:none; }
+		.btn-tool[style] { /* preserve inline styled buttons like special ones */ }
+		#drawingFrame {
+			width: 100%;
+			height: 100%;
+			border: none;
+		}
+
+		/* Container for the Recording area */
+		#recordingWorkspace {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 20px;
+			width: 100%;
+		}
+	</style>
+</head>
+<body>
+
+<header class="header">
+    <div>USER ID: <b>{{ user_id }}</b></div>
+    <div id="subjectLabel">SUBJECT: LOADING...</div>
+</header>
+
+<!-- Violation popup -->
+<div id="violationPopup" style="display:none; position:fixed; right:20px; top:90px; z-index:20000; background:#fee2e2; color:#b91c1c; padding:12px 16px; border-radius:8px; border:1px solid #f87171; box-shadow:0 6px 18px rgba(0,0,0,0.08); font-weight:700;">Violation</div>
+
+<script>
+    // Simple global popup function available to module script
+    window.showViolationPopup = function(reason) {
+        try {
+            const el = document.getElementById('violationPopup');
+            el.innerText = `Violation: ${reason}`;
+            el.style.transition = '';
+            el.style.display = 'block';
+            el.style.opacity = '1';
+            el.style.zIndex = 20000;
+            setTimeout(() => {
+                el.style.transition = 'opacity 400ms ease';
+                el.style.opacity = '0';
+                setTimeout(() => el.style.display = 'none', 420);
+            }, 2000);
+        } catch(e) { console.warn('popup error', e); }
+    };
+</script>
+
+<div class="layout">
+    <aside class="toolbox">
+        <div class="violation-card" id="violationDisplay">Violations: 0 / 5</div>
+        <video id="videoPreview" autoplay playsinline muted></video>
+        <div id="aiStatusBadge" class="status-badge status-wait">AI Initializing...</div>
+        <p id="aiStatusText" style="font-size: 0.7rem; color: #64748b; text-align: center; margin-top: 2px;">Waiting for camera...</p>
+        
+        <button class="tool-btn" onclick="toggleSpeechView()">🎤 Speech to Text</button>
+        <button class="tool-btn" onclick="openDrawingCanvas()">🎨 Drawing Canvas</button>
+        <button class="tool-btn" onclick="openTableEditor()">📊 Create Table</button>
+        
+	<button id="submitBtn" class="tool-btn" style="background:#10b981; color:white; margin-top:8px; text-align:center;" onclick="submitExam()">SUBMIT EXAM</button>
+    </aside>
+
+    <main class="workspace">
+		<div id="drawingOverlay" style="position:absolute; top:0; left:0; width:100%; height:100%; background:white; border-radius:12px; overflow:hidden; border:2px solid #cbd5e1; display:none; z-index:1000; align-items:center; justify-content:center;">
+			<iframe id="drawingFrame" src="" allow="camera; microphone; autoplay; clipboard-write; encrypted-media; display-capture" style="width:100%; height:100%; border:none;"></iframe>
+			<div id="drawingFallback" style="display:none; position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; background:rgba(255,255,255,0.95);">
+				<div style="font-weight:700; color:#1e293b;">Drawing workspace failed to load.</div>
+				<div style="color:#475569;">You can open the drawing canvas in a new tab.</div>
+				<div style="display:flex; gap:8px;">
+					<button onclick="window.open('/drawing_canvas','_blank')" style="padding:8px 12px; background:#2563eb; color:white; border:none; border-radius:6px;">Open in new tab</button>
+					<button onclick="document.getElementById('drawingOverlay').style.display='none'; document.getElementById('recordingWorkspace').style.display='flex';" style="padding:8px 12px; background:#f87171; color:white; border:none; border-radius:6px;">Close</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Inline Table Workspace (integrated from table.html) -->
+		<div id="tableInlineOverlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:1200;">
+			<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+				<div class="table-workspace-container" style="width:95%; height:95%;">
+					<div class="table-ws-header">
+						<div style="font-weight:800; font-size:1.2rem;">📂 Table Workspace</div>
+						<button class="table-btn-main" onclick="closeTableEditor()">Close</button>
+					</div>
+					<div class="table-config-panel">
+						<div class="table-input-group" style="flex:1;">
+							<label>New Table Title</label>
+							<input type="text" id="tbl_tableTitle" placeholder="e.g. Results 01">
+						</div>
+						<div class="table-input-group"><label>Rows</label><input type="number" id="tbl_rowInput" value="3" min="1"></div>
+						<div class="table-input-group"><label>Cols</label><input type="number" id="tbl_colInput" value="3" min="1"></div>
+						<button class="table-btn-main" onclick="tbl_recordNewTable()">Record Table</button>
+					</div>
+					<div class="table-gallery-area" id="tbl_galleryArea"></div>
+					<div id="tbl_editorOverlay" style="display:none; position:absolute; inset:0; background:white; z-index:1300;">
+						<div class="editor-header">
+							<h2 id="tbl_currentEditingTitle">Editing Table</h2>
+							<button class="table-btn-main" id="tbl_micBtn" onclick="tbl_toggleMic()">🎤 Start Recording</button>
+						</div>
+						<div class="editor-content" id="tbl_tableTarget"></div>
+						<div class="editor-footer" style="padding:20px 30px; border-top:1px solid var(--tbl-border); display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+							<button class="btn-tool" onclick="tbl_addRow()">+ Row</button>
+							<button class="btn-tool btn-delete-struct" onclick="tbl_deleteRow()">- Row</button>
+							<button class="btn-tool" onclick="tbl_addCol()">+ Col</button>
+							<button class="btn-tool btn-delete-struct" onclick="tbl_deleteCol()">- Col</button>
+							<button class="btn-tool" style="background:#64748b; color:white; border:none;" onclick="tbl_toggleHeaderRow()">Toggle Header</button>
+							<button class="btn-tool btn-save" onclick="tbl_closeEditor()">SAVE & CLOSE</button>
+							<button class="btn-tool" style="background:var(--tbl-primary); color:white; border:none;" onclick="tbl_submitToExam()">ADD TO EXAM</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+        <div id="recordingWorkspace">
+            <button id="recordBtn" style="background:var(--primary); color:white; border:none; padding:15px 50px; border-radius:30px; font-weight:bold; cursor:pointer;" onclick="toggleSpeech()">START RECORDING</button>
+            <div id="mathOutput" contenteditable="true" placeholder="Start your exam here..."></div>
+        </div>
+    </main>
+</div>
+
+<script type="module">
+    import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/vision_bundle.js";
+	let faceLandmarker;
+	let video = document.getElementById("videoPreview");
+	// expose camera stream and faceLandmarker to window so other scripts can stop them
+	window.cameraStream = null;
+    let violationCount = 0;
+    let isTerminated = false;
+    let isAIReady = false;
+
+    async function startAI() {
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm");
+        faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task", delegate: "GPU" },
+            runningMode: "VIDEO", numFaces: 2
+        });
+        
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+			video.srcObject = stream;
+			window.cameraStream = stream;
+            
+            video.addEventListener("loadeddata", () => {
+                const badge = document.getElementById('aiStatusBadge');
+                const statusText = document.getElementById('aiStatusText');
+                statusText.innerText = "Stabilizing (5s)...";
+
+                setTimeout(() => {
+                    isAIReady = true;
+                    badge.innerText = "Monitoring Active";
+                    badge.className = "status-badge status-active";
+                    statusText.innerText = "Strict Proctoring Enabled";
+                }, 5000);
+
+				// expose faceLandmarker instance to window for stop/cleanup
+				try { window.faceLandmarker = faceLandmarker; } catch(e){}
+
+				const detect = () => {
+                    if(isTerminated) return;
+                    const results = faceLandmarker.detectForVideo(video, Date.now());
+                    if(isAIReady && results.faceLandmarks) {
+                        if(results.faceLandmarks.length === 0 || results.faceLandmarks.length > 1) {
+                            // call global trigger if exposed, otherwise call local triggerViolation
+                            const reason = results.faceLandmarks.length === 0 ? "No Face Detected" : "Multiple People Detected";
+                            try {
+                                if (window.triggerViolation) window.triggerViolation(reason);
+                                else triggerViolation(reason);
+                            } catch(e) { triggerViolation(reason); }
+                        }
+                    }
+                    setTimeout(() => requestAnimationFrame(detect), 1500);
+				};
+                detect();
+            });
+        } catch (err) {
+            console.error("Camera error:", err);
+        }
+    }
+    // Expose triggerViolation to the page (non-module script) and ensure popup/logging
+	function triggerViolation(reason) {
+		// Simple violation counter; do not freeze or force fullscreen.
+			if (typeof isTerminated !== 'undefined' && isTerminated) return;
+			violationCount++;
+			const disp = document.getElementById('violationDisplay'); if (disp) disp.innerText = `Violations: ${violationCount} / 5`;
+			try { fetch('/log_event', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ event: reason }) }); } catch(e){}
+			try { if (window.showViolationPopup) window.showViolationPopup(reason); } catch(e){}
+			try { alert(`WARNING (${violationCount}/5): ${reason}`); } catch(e){}
+			// Auto-submit when threshold reached
+			const THRESHOLD = 5;
+			if (violationCount >= THRESHOLD) {
+				isTerminated = true;
+				if (disp) disp.innerText = `Violations: ${violationCount} / ${THRESHOLD} — Auto-submitting`;
+				try {
+					if (typeof window.submitExam === 'function') window.submitExam(true);
+					else if (typeof window.performSubmission === 'function') window.performSubmission();
+					else {
+						setTimeout(() => {
+							if (typeof window.submitExam === 'function') window.submitExam(true);
+							else if (typeof window.performSubmission === 'function') window.performSubmission();
+						}, 500);
+					}
+				} catch(e){ console.warn('auto-submit failed', e); }
+			}
+	}
+	// make available to non-module scripts
+	window.triggerViolation = triggerViolation;
+
+	// START/PROCTORING CONTROL: require fullscreen to begin and set handlers
+	// show a start overlay prompting the user to enter fullscreen and begin
+	const startOverlay = document.createElement('div');
+	startOverlay.id = 'startOverlay';
+	startOverlay.style = 'position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:25000;';
+	startOverlay.innerHTML = `
+		<div style="background:#fff; padding:28px; border-radius:12px; width:420px; max-width:90%; text-align:center;">
+			<h2 style="margin:0 0 8px 0;">Start Exam</h2>
+			<p style="color:#374151;">For security, please enter fullscreen to begin. Exiting fullscreen will be recorded as a violation.</p>
+			<div style="display:flex; gap:10px; justify-content:center; margin-top:18px;">
+				<button id="enterFsBtn" style="padding:10px 16px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-weight:700;">Enter Fullscreen & Start</button>
+			</div>
+		</div>`;
+	document.body.appendChild(startOverlay);
+
+	document.getElementById('enterFsBtn').addEventListener('click', async () => {
+		try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+		startAI();
+		setupProctoringHandlers();
+		startOverlay.style.display = 'none';
+	});
+
+	// Ensure leaving fullscreen is a violation
+	// (Removed freeze overlay behavior; re-enter fullscreen handled separately)
+
+	// Expose a way to start programmatically if needed
+	window.startExam = async function() {
+		try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+		startAI(); setupProctoringHandlers(); if (startOverlay) startOverlay.style.display = 'none';
+	};
+</script>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const examName = params.get('name') || 'General Exam';
+    const examLang = params.get('lang') || 'en-US';
+    document.getElementById('subjectLabel').innerText = "SUBJECT: " + examName.toUpperCase();
+
+	// NAVIGATION LOGIC - THIS SWAPS THE VIEWS
+    function openDrawingCanvas() {
+        // save draft and show overlay
+        try { saveDraft(); } catch(e){}
+        document.getElementById('recordingWorkspace').style.display = 'none';
+        const overlay = document.getElementById('drawingOverlay');
+        overlay.style.display = 'block';
+		// ensure inline table editor closed
+		try { closeTableEditor(); } catch(e) {}
+        const frame = document.getElementById('drawingFrame');
+        const fallback = document.getElementById('drawingFallback');
+        if (fallback) fallback.style.display = 'none';
+
+        // set src with timestamp to avoid caching
+        const newSrc = '/drawing_canvas?ts=' + Date.now();
+        frame.src = newSrc;
+
+        // show a loader and set a timeout to show fallback if iframe fails
+        overlay.classList.add('loading');
+        let loaded = false;
+        const onload = () => { loaded = true; overlay.classList.remove('loading'); try { frame.contentWindow.postMessage({type:'PARENT_READY'}, '*'); } catch(e){} };
+        frame.onload = onload;
+        // fallback after 2s if not loaded
+        setTimeout(() => {
+            if (!loaded) {
+                overlay.classList.remove('loading');
+                if (fallback) fallback.style.display = 'flex';
+            }
+        }, 2000);
+    }
+
+	function toggleSpeechView() {
+		document.getElementById('drawingOverlay').style.display = 'none';
+		document.getElementById('recordingWorkspace').style.display = 'flex';
+		// ensure inline table editor closed
+		try { closeTableEditor(); } catch(e) {}
+	}
+
+	// TABLE (inline) editor control - consolidated
+    
+
+    // Save current content to server as a draft
+    async function saveDraft() {
+        try {
+            const content = document.getElementById('mathOutput').innerHTML;
+            await fetch('/save_answer', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ exam_name: examName, content: content })
+            });
+        } catch (e) { console.warn('Draft save failed', e); }
+    }
+
+	// Soft-warning and automatic proctoring handlers removed per request.
+	function maybeTrigger(reason) { console.log('Monitoring suppressed:', reason); }
+	function setupProctoringHandlers() { /* intentionally empty */ }
+
+	// When user exits fullscreen, show a re-enter overlay that blocks editing until they re-enter fullscreen.
+	const reenterOverlay = document.createElement('div');
+	reenterOverlay.id = 'reenterOverlay';
+	reenterOverlay.style = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:26000; color:#fff;';
+	reenterOverlay.innerHTML = `<div style="text-align:center; max-width:90%; padding:22px; background:rgba(15,23,42,0.95); border-radius:10px;"><h2 style="margin:0 0 10px 0;">Please Re-enter Fullscreen</h2><p style="color:#cbd5e1;">The exam requires fullscreen. Click the button below to re-enter.</p><div style="margin-top:14px;"><button id="reenterFsBtn" style="padding:10px 16px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-weight:700;">Re-enter Fullscreen</button></div></div>`;
+	document.body.appendChild(reenterOverlay);
+
+	document.getElementById('reenterFsBtn').addEventListener('click', async () => {
+		try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e) { console.warn('requestFullscreen blocked', e); }
+		try { reenterOverlay.style.display = 'none'; document.getElementById('mathOutput').contentEditable = 'true'; document.querySelectorAll('button, input, textarea').forEach(el=>el.disabled=false); } catch(e){}
+	});
+
+	// Also handle via delegated click in case direct binding fails in some browsers
+	document.addEventListener('click', async (ev) => {
+		const t = ev.target;
+		if (t && t.id === 'reenterFsBtn') {
+			try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e) { console.warn('requestFullscreen blocked', e); }
+			try { reenterOverlay.style.display = 'none'; document.getElementById('mathOutput').contentEditable = 'true'; document.querySelectorAll('button, input, textarea').forEach(el=>el.disabled=false); } catch(e){}
+		}
+	});
+
+	// Only keep tab-switch visibility monitoring and face-detection violations.
+	document.addEventListener('visibilitychange', () => { if (document.hidden) { triggerViolation('Tab Switch/Hidden'); } });
+
+	document.addEventListener('fullscreenchange', () => {
+		if (!document.fullscreenElement) {
+			// hide content until the user re-enters fullscreen (user must click the button)
+			reenterOverlay.style.display = 'flex';
+			try { document.getElementById('mathOutput').contentEditable = 'false'; document.querySelectorAll('button, input, textarea').forEach(el => { if (el.id !== 'submitBtn' && !el.closest('#reenterOverlay')) el.disabled = true; }); } catch(e){}
+		} else {
+			reenterOverlay.style.display = 'none';
+			try { document.getElementById('mathOutput').contentEditable = 'true'; document.querySelectorAll('button, input, textarea').forEach(el=>el.disabled=false); } catch(e){}
+		}
+	});
+
+    // LISTENER FOR MESSAGES FROM DC.HTML
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'NAVIGATE_BACK') {
+            toggleSpeechView();
+        }
+        if (event.data.type === 'DRAWING') {
+            const dataURL = event.data.image;
+            const output = document.getElementById('mathOutput');
+            const img = document.createElement('img');
+            img.src = dataURL;
+            img.style.maxWidth = "400px";
+            img.style.display = "block";
+            img.style.margin = "15px 0";
+            output.appendChild(img);
+            toggleSpeechView(); // Auto return to text
+        }
+        if (event.data.type === 'DC_LOADED') {
+            // hide fallback if any and remove loading state
+            const overlay = document.getElementById('drawingOverlay');
+            const fallback = document.getElementById('drawingFallback');
+            if (fallback) fallback.style.display = 'none';
+            if (overlay) overlay.classList.remove('loading');
+            console.log('drawing canvas signaled ready');
+        }
+    });
+
+    let recognition;
+    let isRecording = false;
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.lang = examLang; 
+        recognition.onresult = (event) => {
+            let transcript = event.results[event.results.length - 1][0].transcript;
+            const output = document.getElementById('mathOutput');
+            output.innerHTML += transcript + " ";
+            MathJax.typeset();
+        };
+    }
+
+    function toggleSpeech() {
+        const btn = document.getElementById('recordBtn');
+        if (!isRecording) { recognition.start(); btn.innerText = "STOP RECORDING"; btn.style.background = "red"; }
+        else { recognition.stop(); btn.innerText = "START RECORDING"; btn.style.background = "#2563eb"; }
+        isRecording = !isRecording;
+    }
+
+    function insertTable() { 
+        document.getElementById('mathOutput').innerHTML += "<br><table border='1' style='width:100%;'><tr><td>Data</td><td>Value</td></tr></table><br>"; 
+    }
+
+	async function saveAsPDF() {
+		// Clone the content to ensure off-screen/full-length rendering (includes images/tables)
+		const orig = document.getElementById('mathOutput');
+		const clone = orig.cloneNode(true);
+		// Target A4 width in pixels (approx at 96dpi)
+		const A4_PX = 794; // ~8.27in * 96dpi
+		clone.style.width = A4_PX + 'px';
+		clone.style.maxWidth = A4_PX + 'px';
+		clone.style.height = 'auto';
+		clone.style.maxHeight = 'none';
+		clone.style.overflow = 'visible';
+		clone.style.boxSizing = 'border-box';
+		// ensure images/tables scale within page width
+		clone.querySelectorAll('img, table').forEach(el => { el.style.maxWidth = (A4_PX - 40) + 'px'; el.style.width = 'auto'; el.style.boxSizing = 'border-box'; });
+
+		const holder = document.createElement('div');
+		holder.style.position = 'fixed';
+		holder.style.left = '-9999px';
+		holder.style.top = '0';
+		holder.style.width = A4_PX + 'px';
+		// add padding to match PDF margin
+		const pageWrap = document.createElement('div');
+		// center the content on A4 and provide minimal margins
+		pageWrap.style.padding = '14px';
+		pageWrap.style.boxSizing = 'border-box';
+		pageWrap.style.width = '100%';
+		pageWrap.style.display = 'flex';
+		pageWrap.style.flexDirection = 'column';
+		pageWrap.style.alignItems = 'center';
+		pageWrap.style.justifyContent = 'flex-start';
+		// center the clone within the page wrap
+		clone.style.margin = '0 auto';
+		clone.style.display = 'block';
+		clone.style.textAlign = 'center';
+		// ensure inner elements center horizontally
+		clone.querySelectorAll('p, div, span').forEach(el=>{ el.style.textAlign = 'center'; });
+		pageWrap.appendChild(clone);
+		holder.appendChild(pageWrap);
+		document.body.appendChild(holder);
+
+		const opt = {
+			margin: 0.25, // inches
+			filename: `${examName}_${Date.now()}.pdf`,
+			jsPDF: { unit: 'in', format: 'a4' },
+			pagebreak: { mode: ['css', 'legacy'] },
+			html2canvas: { scale: 3, useCORS: true }
+		};
+		try {
+			await html2pdf().set(opt).from(pageWrap).save();
+		} finally {
+			document.body.removeChild(holder);
+		}
+	}
+
+	// Completion overlay to avoid blank/freezing navigation
+	function showCompletionOverlay(message) {
+		let overlay = document.getElementById('completionOverlay');
+		if (!overlay) {
+			overlay = document.createElement('div');
+			overlay.id = 'completionOverlay';
+			overlay.style = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:24000; color:#fff;';
+			overlay.innerHTML = `<div style="background:#0f172a; padding:28px; border-radius:12px; width:480px; max-width:90%; text-align:center;"><h2 style="margin:0 0 8px 0;">${message}</h2><p style="color:#cbd5e1;">Your answers are saved and a PDF is being downloaded. You may now close this window.</p><div style="margin-top:14px;"><button id="completionCloseBtn" style="padding:8px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700;">Close</button></div></div>`;
+			document.body.appendChild(overlay);
+			document.getElementById('completionCloseBtn').addEventListener('click', () => {
+				try { if (document.fullscreenElement) document.exitFullscreen(); } catch(e){}
+				// Try to close the window; if blocked, navigate to results as fallback
+				try { window.close(); } catch(e){}
+				setTimeout(()=>{
+					try { window.open('', '_self'); window.close(); } catch(e){}
+					// final fallback
+					window.location.href = '/results';
+				}, 600);
+			});
+		} else {
+			overlay.querySelector('h2').innerText = message;
+			overlay.style.display = 'flex';
+		}
+	}
+
+	// Show a confirmation modal before submitting
+	function showSubmitConfirm() {
+		let modal = document.getElementById('submitConfirmOverlay');
+		if (!modal) {
+			modal = document.createElement('div');
+			modal.id = 'submitConfirmOverlay';
+			modal.style = 'position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:27000;';
+			modal.innerHTML = `<div style="background:#fff; padding:20px 22px; border-radius:10px; width:420px; max-width:90%; text-align:center; color:#0f172a;"><h3 style="margin:0 0 8px 0;">Submit Exam</h3><p style="color:#374151;">Click OK to submit your exam and download a full PDF of your answers (includes drawings/tables).</p><div style="display:flex; gap:10px; justify-content:center; margin-top:12px;"><button id="confirmSubmitOk" style="padding:8px 12px; background:#2563eb; color:#fff; border:none; border-radius:8px; font-weight:700;">OK</button><button id="confirmSubmitCancel" style="padding:8px 12px; background:#e5e7eb; color:#111827; border:none; border-radius:8px;">Cancel</button></div></div>`;
+			document.body.appendChild(modal);
+			document.getElementById('confirmSubmitOk').addEventListener('click', () => { modal.style.display='none'; performSubmission(); });
+			document.getElementById('confirmSubmitCancel').addEventListener('click', () => { modal.style.display='none'; });
+		} else { modal.style.display = 'flex'; }
+	}
+
+	async function performSubmission() {
+		try {
+			// show submitting overlay
+			showCompletionOverlay('Submitting...');
+			const content = document.getElementById('mathOutput').innerHTML;
+			// produce PDF and wait for it to complete
+			await saveAsPDF();
+			// send to server
+			try {
+				await fetch('/submit_exam', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ exam_name: examName, content: content }) });
+			} catch(e) { console.warn('submit failed', e); }
+
+			// stop camera and mic and any recognition
+			try {
+				if (window.cameraStream) {
+					window.cameraStream.getTracks().forEach(t=>{ try { t.stop(); } catch(e){} });
+					const vp = document.getElementById('videoPreview'); if (vp) try { vp.srcObject = null; } catch(e){}
+					window.cameraStream = null;
+				}
+			} catch(e) { console.warn('stop camera failed', e); }
+			try { if (typeof recognition !== 'undefined' && recognition && recognition.stop) recognition.stop(); } catch(e){}
+			try { if (typeof tbl_recognition !== 'undefined' && tbl_recognition && tbl_recognition.stop) tbl_recognition.stop(); } catch(e){}
+			try { if (window.faceLandmarker && typeof window.faceLandmarker.close === 'function') window.faceLandmarker.close(); } catch(e){}
+
+			// unfreeze UI (clear any reenter overlay state)
+			try {
+				const ro = document.getElementById('reenterOverlay'); if (ro) ro.style.display = 'none';
+				const mo = document.getElementById('mathOutput'); if (mo) mo.contentEditable = 'true';
+				document.querySelectorAll('button, input, textarea').forEach(el => el.disabled = false);
+			} catch(e) { console.warn('unfreeze failed', e); }
+
+			// show thank you message and redirect to results shortly
+			showCompletionOverlay('Submission Complete — Thank You');
+			setTimeout(()=>{ window.location.href = '/results'; }, 800);
+		} catch(e) {
+			console.warn('performSubmission error', e);
+		}
+	}
+
+	// submitExam entry — show confirmation modal
+	function submitExam(isAuto=false) { if (isAuto) { performSubmission(); } else { showSubmitConfirm(); } }
+</script>
+
+<!-- Inline Table editor script (namespaced with tbl_ prefix) -->
+<script>
+	let tbl_tablesData = [];
+	let tbl_currentEditingId = null;
+	let tbl_selectedCell = null;
+	let tbl_recognition = null;
+	let tbl_isRecording = false;
+
+	// Speech for table editor
+	if ('webkitSpeechRecognition' in window) {
+		tbl_recognition = new webkitSpeechRecognition();
+		tbl_recognition.continuous = true;
+		tbl_recognition.interimResults = true;
+		tbl_recognition.onresult = (event) => {
+			let interim = '';
+			for (let i = event.resultIndex; i < event.results.length; ++i) {
+				if (event.results[i].isFinal) {
+					if (tbl_selectedCell) tbl_selectedCell.innerText = event.results[i][0].transcript;
+				} else {
+					interim += event.results[i][0].transcript;
+					if (tbl_selectedCell) tbl_selectedCell.innerText = interim;
+				}
+			}
+		};
+	}
+
+	function tbl_toggleMic() {
+		if (!tbl_selectedCell) return alert('Select a cell first!');
+		const btn = document.getElementById('tbl_micBtn');
+		if (!tbl_isRecording) { tbl_recognition.start(); tbl_isRecording = true; btn.innerText = '🛑 Recording...'; btn.classList.add('recording-active'); }
+		else { tbl_recognition.stop(); tbl_isRecording = false; btn.innerText = '🎤 Start Recording'; btn.classList.remove('recording-active'); }
+	}
+
+	function tbl_recordNewTable() {
+		const title = document.getElementById('tbl_tableTitle').value || 'Untitled Table';
+		const r = parseInt(document.getElementById('tbl_rowInput').value || 3);
+		const c = parseInt(document.getElementById('tbl_colInput').value || 3);
+		const id = Date.now();
+		let tableHtml = '<table class="exam-table" id="tbl_active">';
+		for (let i=0;i<r;i++){
+			tableHtml += '<tr>';
+			for(let j=0;j<c;j++) tableHtml += '<td contenteditable="true" onclick="tbl_focusCell(this)">Data</td>';
+			tableHtml += '</tr>';
+		}
+		tableHtml += '</table>';
+		// save to server
+		fetch('/save_table', {
+			method: 'POST', headers: {'Content-Type':'application/json'},
+			body: JSON.stringify({ title: title, html: tableHtml })
+		}).then(r=>r.json()).then(data=>{
+			const newId = data.id || id;
+			tbl_tablesData.push({id: newId, title, html: tableHtml});
+			document.getElementById('tbl_tableTitle').value = '';
+			tbl_renderGallery();
+		}).catch(e=>{ console.warn('save table failed', e); tbl_tablesData.push({id, title, html: tableHtml}); document.getElementById('tbl_tableTitle').value = ''; tbl_renderGallery(); });
+	}
+
+	function tbl_renderGallery(){
+		const area = document.getElementById('tbl_galleryArea'); area.innerHTML = '';
+		tbl_tablesData.forEach(t=>{
+			const thumb = document.createElement('div'); thumb.className='table-thumb';
+			thumb.innerHTML = `<strong>${t.title}</strong><button class="btn-edit-trigger" onclick="tbl_openEditor(${t.id})">Edit Table</button><div style="margin-top:10px; color:var(--tbl-danger); font-size:12px;" onclick="tbl_deleteRecord(${t.id})">Delete</div>`;
+			area.appendChild(thumb);
+		});
+	}
+
+	function tbl_openEditor(id){
+		tbl_currentEditingId = id; const tableObj = tbl_tablesData.find(x=>x.id===id);
+		document.getElementById('tbl_currentEditingTitle').innerText = tableObj.title;
+		document.getElementById('tbl_tableTarget').innerHTML = tableObj.html;
+		document.getElementById('tbl_editorOverlay').style.display = 'flex';
+	}
+
+	function tbl_closeEditor(){
+		const idx = tbl_tablesData.findIndex(t=>t.id===tbl_currentEditingId);
+		const updatedHtml = document.getElementById('tbl_tableTarget').innerHTML;
+		if (idx>=0) tbl_tablesData[idx].html = updatedHtml;
+		// persist update to server
+		if (idx>=0) {
+			const rec = tbl_tablesData[idx];
+			fetch('/save_table', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: rec.id, title: rec.title, html: updatedHtml }) })
+			.catch(e=>console.warn('update table failed', e));
+		}
+		document.getElementById('tbl_editorOverlay').style.display='none';
+		if (tbl_isRecording) tbl_toggleMic();
+		tbl_renderGallery();
+	}
+
+	function tbl_focusCell(cell){ document.querySelectorAll('#tbl_tableTarget td, #tbl_tableTarget th').forEach(td=>td.classList.remove('focused-cell')); tbl_selectedCell = cell; cell.classList.add('focused-cell'); }
+	document.addEventListener('keydown', function(e){ if ((e.target.tagName==='TD' || e.target.tagName==='TH') && e.key==='Enter'){ e.preventDefault(); e.target.blur(); } });
+
+	function tbl_toggleHeaderRow(){
+		const tbl = document.querySelector('#tbl_tableTarget table'); if (!tbl) return;
+		const firstRow = tbl.rows[0]; if (!firstRow) return;
+		const isHeader = firstRow.cells.length && firstRow.cells[0].tagName.toLowerCase() === 'th';
+		if (!isHeader) {
+			// convert first row td -> th
+			for (let i=0;i<firstRow.cells.length;i++){
+				const td = firstRow.cells[i];
+				const th = document.createElement('th');
+				th.innerHTML = td.innerHTML;
+				th.contentEditable = 'true';
+				th.onclick = function(){ tbl_focusCell(this); };
+				firstRow.replaceChild(th, td);
+			}
+		} else {
+			// convert th -> td
+			for (let i=0;i<firstRow.cells.length;i++){
+				const th = firstRow.cells[i];
+				const td = document.createElement('td');
+				td.innerHTML = th.innerHTML;
+				td.contentEditable = 'true';
+				td.onclick = function(){ tbl_focusCell(this); };
+				firstRow.replaceChild(td, th);
+			}
+		}
+	}
+	function tbl_addRow(){ const tbl = document.querySelector('#tbl_tableTarget table'); const row = tbl.insertRow(); for(let i=0;i<tbl.rows[0].cells.length;i++){ const c=row.insertCell(); c.contentEditable='true'; c.onclick=function(){tbl_focusCell(this)}; c.innerText='Data'; }}
+	function tbl_deleteRow(){ const tbl = document.querySelector('#tbl_tableTarget table'); if (tbl.rows.length>1) tbl.deleteRow(-1); }
+	function tbl_addCol(){ const tbl = document.querySelector('#tbl_tableTarget table'); for(let i=0;i<tbl.rows.length;i++){ const c = tbl.rows[i].insertCell(); c.contentEditable='true'; c.onclick=function(){tbl_focusCell(this)}; c.innerText='Data'; }}
+	function tbl_deleteCol(){ const tbl = document.querySelector('#tbl_tableTarget table'); if (tbl.rows[0].cells.length>1){ for(let i=0;i<tbl.rows.length;i++) tbl.rows[i].deleteCell(-1); }}
+	function tbl_deleteRecord(id){ if(confirm('Delete this table?')){ fetch('/delete_table', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ id: id }) }).then(r=>{ if (r.ok) { tbl_tablesData = tbl_tablesData.filter(t=>t.id!==id); tbl_renderGallery(); } else { alert('Delete failed'); } }).catch(e=>{ console.warn('delete failed', e); tbl_tablesData = tbl_tablesData.filter(t=>t.id!==id); tbl_renderGallery(); }); }}
+
+	function tbl_submitToExam(){ const title = document.getElementById('tbl_currentEditingTitle').innerText; const tblEl = document.querySelector('#tbl_tableTarget table'); if(!tblEl) return alert('No table'); const html = `<div style="margin:15px 0;"><b>${title}</b><br>${tblEl.outerHTML}</div>`; document.getElementById('mathOutput').innerHTML += html; tbl_closeEditor(); saveDraft(); }
+
+	// Open/close controls for inline overlay (consolidated)
+	function openTableEditor(){
+		// hide drawing overlay if visible
+		const drawing = document.getElementById('drawingOverlay'); if (drawing) drawing.style.display = 'none';
+		document.getElementById('tableInlineOverlay').style.display='block';
+		// load persisted tables
+		fetch('/load_tables').then(r=>r.json()).then(data=>{ tbl_tablesData = data.map(d=>({id:d.id, title:d.title, html:d.html})); tbl_renderGallery(); }).catch(e=>{ console.warn('load tables failed', e); tbl_tablesData = []; tbl_renderGallery(); });
+	}
+	function closeTableEditor(){ document.getElementById('tableInlineOverlay').style.display='none'; }
+</script>
+</body>
+</html>

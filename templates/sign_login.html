@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistive Examination System - Auth</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #667eea; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 350px; }
+        h2 { text-align: center; color: #333; margin-bottom: 1.5rem; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #4a90e2; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; transition: background 0.3s; }
+        button:hover { background: #357abd; }
+        .hidden { display: none; }
+        .toggle { text-align: center; margin-top: 15px; font-size: 0.9rem; cursor: pointer; color: #4a90e2; }
+        .toggle:hover { text-decoration: underline; }
+        .forgot-link { display: block; text-align: right; font-size: 0.8rem; color: #4a90e2; cursor: pointer; text-decoration: none; margin-bottom: 5px; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 id="title">Sign Up</h2>
+    <form id="authForm">
+        <input type="text" id="uid" placeholder="Unique ID Number *" required>
+        
+        <div id="signupOnly">
+            <input type="text" id="username" placeholder="User Name *">
+            <input type="email" id="email" placeholder="Email *">
+        </div>
+
+        <input type="password" id="password" placeholder="Password *" required>
+        
+        <div id="loginOnly" class="hidden">
+            <a class="forgot-link" onclick="handleForgotPassword()">Forgot Password?</a>
+        </div>
+
+        <div id="signupOnly2">
+            <input type="password" id="repass" placeholder="Re-enter Password *">
+            <hr>
+            <input type="text" id="location" placeholder="Location">
+            <input type="text" id="education" placeholder="Education">
+            <select id="gender">
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+            </select>
+        </div>
+
+        <button type="submit" id="btn">Create Account</button>
+    </form>
+    <div class="toggle" onclick="toggleMode()" id="toggleText">Already have an account? Login</div>
+</div>
+
+<script>
+    let isLogin = false;
+
+    // Toggle between Login and Sign Up modes
+    function toggleMode() {
+        isLogin = !isLogin;
+        document.getElementById('title').innerText = isLogin ? "Login" : "Sign Up";
+        document.getElementById('btn').innerText = isLogin ? "Login" : "Create Account";
+        document.getElementById('toggleText').innerText = isLogin ? "Need an account? Sign Up" : "Already have an account? Login";
+        
+        // Toggle field visibility
+        document.getElementById('signupOnly').classList.toggle('hidden', isLogin);
+        document.getElementById('signupOnly2').classList.toggle('hidden', isLogin);
+        document.getElementById('loginOnly').classList.toggle('hidden', !isLogin);
+    }
+
+    // Handle Forgot Password Prompt
+    async function handleForgotPassword() {
+        const email = prompt("Enter your registered email address:");
+        if (!email) return;
+
+        try {
+            const response = await fetch('/forgot_password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email: email })
+            });
+            const result = await response.json();
+            alert(result.message);
+        } catch (err) {
+            alert("Error: Could not connect to the server.");
+        }
+    }
+
+    // Handle Form Submission (Login or Signup)
+    document.getElementById('authForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            uid: document.getElementById('uid').value,
+            password: document.getElementById('password').value,
+            username: document.getElementById('username').value,
+            email: document.getElementById('email').value,
+            location: document.getElementById('location').value,
+            education: document.getElementById('education').value,
+            gender: document.getElementById('gender').value
+        };
+
+        // Basic password match check for signup
+        if (!isLogin && data.password !== document.getElementById('repass').value) {
+            alert("Passwords do not match!");
+            return;
+        }
+
+        const endpoint = isLogin ? '/login' : '/signup';
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                // Show success message if it was a registration
+                if (!isLogin) {
+                    alert(result.message); // Displays "Registration Successful"
+                }
+                // Redirect to dashboard
+                window.location.href = "/dashboard";
+            } else {
+                alert(result.message);
+            }
+        } catch (err) {
+            alert("Connection failed! Make sure your Python server is running.");
+        }
+    };
+</script>
+</body>
+</html>

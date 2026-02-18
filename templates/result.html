@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Completed</title>
+    <style>
+        :root {
+            --success: #10b981;
+            --dark: #1e293b;
+            --bg: #f1f5f9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--dark);
+        }
+
+        .success-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .icon-circle {
+            width: 80px;
+            height: 80px;
+            background: #dcfce7;
+            color: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 20px;
+        }
+
+        h1 { margin: 0 0 10px; font-size: 1.8rem; }
+        p { color: #64748b; margin-bottom: 30px; }
+
+        .details-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .detail-item:last-child { margin-bottom: 0; }
+        .label { font-weight: 600; color: #64748b; }
+        .value { font-weight: 700; color: var(--dark); }
+
+        .btn-home {
+            display: inline-block;
+            background: var(--dark);
+            color: white;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-home:hover { opacity: 0.9; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+<div class="success-card">
+    <div class="icon-circle">✓</div>
+    <h1>Exam Completed</h1>
+    <p>Your responses have been securely submitted and logged for review.</p>
+
+    <div class="details-box">
+        <div class="detail-item">
+            <span class="label">Student ID:</span>
+            <span class="value">{{ user_id }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="label">Subject:</span>
+            <span class="value" id="disp-subject">Loading...</span>
+        </div>
+        <div class="detail-item">
+            <span class="label">Status:</span>
+            <span class="value" style="color: var(--success);">SUCCESSFUL</span>
+        </div>
+    </div>
+
+   </div>
+
+<script>
+    // Grab the subject name from URL parameters (if passed) or local storage
+    const params = new URLSearchParams(window.location.search);
+    const subject = params.get('name') || "General Examination";
+    document.getElementById('disp-subject').innerText = subject.toUpperCase();
+</script>
+
+</body>
+</html>

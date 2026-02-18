@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Workspace - Final Pro Edition</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: var(--dark); overflow: hidden; }
+
+        .workspace-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            position: relative;
+        }
+
+        .ws-header { padding: 15px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: #fff; z-index: 10; }
+
+        .config-panel {
+            padding: 20px 30px;
+            background: #fff;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.8rem; font-weight: 600; color: #64748b; }
+        .input-group input { padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+
+        .btn-main { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-mic { background: #f1f5f9; color: var(--dark); border: 1px solid var(--border); padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .recording-active { background: var(--danger) !important; color: white !important; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+        .gallery-area { flex: 1; padding: 25px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+        .table-thumb { 
+            background: white; border: 2px solid var(--border); border-radius: 12px; padding: 20px; 
+            text-align: center; cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .table-thumb:hover { border-color: var(--primary); transform: translateY(-3px); }
+        .table-thumb strong { display: block; margin-bottom: 10px; font-size: 1.1rem; }
+        .btn-edit-trigger { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+
+        #editorOverlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 100; flex-direction: column;
+        }
+        .editor-header { padding: 15px 30px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .editor-content { flex: 1; padding: 40px; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+        
+        table { border-collapse: collapse; background: white; min-width: 300px; }
+        table td { border: 1px solid #cbd5e1; padding: 15px; outline: none; min-width: 100px; text-align: center; }
+        table td.focused-cell { background: #eff6ff !important; border: 2px solid var(--primary); }
+
+        /* Header Toggle Style */
+        .is-header-row tr:first-child td { background: #f1f5f9; font-weight: bold; }
+
+        .editor-footer { padding: 20px 30px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .btn-tool { padding: 10px 18px; border-radius: 8px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+        .btn-save { background: var(--success); color: white; border: none; min-width: 120px; }
+        .btn-delete-struct { background: #fee2e2; color: var(--danger); border: 1px solid var(--danger); }
+    </style>
+</head>
+<body>
+
+<div class="workspace-container">
+    <div class="ws-header">
+        <div style="font-weight: 800; font-size: 1.2rem;">📂 Table Workspace</div>
+        <button class="btn-tool" onclick="window.parent.postMessage({type:'NAVIGATE_BACK'},'*')">Back to Exam</button>
+    </div>
+
+    <div class="config-panel">
+        <div class="input-group" style="flex: 1;">
+            <label>New Table Title</label>
+            <input type="text" id="tableTitle" placeholder="e.g. Results 01">
+        </div>
+        <div class="input-group"><label>Rows</label><input type="number" id="rowInput" value="3" min="1"></div>
+        <div class="input-group"><label>Cols</label><input type="number" id="colInput" value="3" min="1"></div>
+        <button class="btn-main" onclick="recordNewTable()">Record Table</button>
+    </div>
+
+    <div class="gallery-area" id="galleryArea"></div>
+
+    <div id="editorOverlay">
+        <div class="editor-header">
+            <h2 id="currentEditingTitle">Editing Table</h2>
+            <button class="btn-mic" id="micBtn" onclick="toggleMic()">🎤 Start Recording</button>
+        </div>
+        <div class="editor-content" id="tableTarget"></div>
+        <div class="editor-footer">
+            <button class="btn-tool" onclick="addRow()">+ Row</button>
+            <button class="btn-tool btn-delete-struct" onclick="deleteRow()">- Row</button>
+            <button class="btn-tool" onclick="addCol()">+ Col</button>
+            <button class="btn-tool btn-delete-struct" onclick="deleteCol()">- Col</button>
+            <button class="btn-tool" style="background:#64748b; color:white; border:none;" onclick="toggleHeaderRow()">Toggle Header</button>
+            <button class="btn-tool btn-save" onclick="closeEditor()">SAVE & CLOSE</button>
+            <button class="btn-tool" style="background:var(--primary); color:white; border:none;" onclick="submitToExam()">ADD TO EXAM</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let tablesData = [];
+    let currentEditingId = null;
+    let selectedCell = null;
+    let recognition = null;
+    let isRecording = false;
+
+    // Enhanced Speech Logic with Interim Results
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true; // Added for word-by-word display
+
+        recognition.onresult = (event) => {
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    selectedCell.innerText = event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                    if (selectedCell) selectedCell.innerText = interimTranscript;
+                }
+            }
+        };
+    }
+
+    function toggleMic() {
+        if (!selectedCell) return alert("Select a cell first!");
+        const btn = document.getElementById('micBtn');
+        if (!isRecording) {
+            recognition.start();
+            isRecording = true;
+            btn.innerText = "🛑 Recording...";
+            btn.classList.add('recording-active');
+        } else {
+            recognition.stop();
+            isRecording = false;
+            btn.innerText = "🎤 Start Recording";
+            btn.classList.remove('recording-active');
+        }
+    }
+
+    function recordNewTable() {
+        const titleInput = document.getElementById('tableTitle');
+        const title = titleInput.value || "Untitled Table";
+        const r = parseInt(document.getElementById('rowInput').value);
+        const c = parseInt(document.getElementById('colInput').value);
+        const id = Date.now();
+        
+        let tableHtml = `<table id="active-tbl">`;
+        for(let i=0; i<r; i++) {
+            tableHtml += "<tr>";
+            for(let j=0; j<c; j++) tableHtml += `<td contenteditable="true" onclick="focusCell(this)">Data</td>`;
+            tableHtml += "</tr>";
+        }
+        tableHtml += "</table>";
+
+        tablesData.push({ id, title, html: tableHtml });
+        titleInput.value = ""; // Clear input after recording
+        renderGallery();
+    }
+
+    function renderGallery() {
+        const area = document.getElementById('galleryArea');
+        area.innerHTML = "";
+        tablesData.forEach(t => {
+            const thumb = document.createElement('div');
+            thumb.className = 'table-thumb';
+            thumb.innerHTML = `
+                <strong>${t.title}</strong>
+                <button class="btn-edit-trigger" onclick="openEditor(${t.id})">Edit Table</button>
+                <div style="margin-top:10px; color:var(--danger); font-size:12px;" onclick="deleteRecord(${t.id})">Delete</div>
+            `;
+            area.appendChild(thumb);
+        });
+    }
+
+    function openEditor(id) {
+        currentEditingId = id;
+        const tableObj = tablesData.find(t => t.id === id);
+        document.getElementById('currentEditingTitle').innerText = tableObj.title;
+        document.getElementById('tableTarget').innerHTML = tableObj.html;
+        document.getElementById('editorOverlay').style.display = 'flex';
+    }
+
+    function closeEditor() {
+        const index = tablesData.findIndex(t => t.id === currentEditingId);
+        tablesData[index].html = document.getElementById('tableTarget').innerHTML;
+        document.getElementById('editorOverlay').style.display = 'none';
+        if(isRecording) toggleMic();
+        renderGallery();
+    }
+
+    function focusCell(cell) {
+        document.querySelectorAll('td').forEach(td => td.classList.remove('focused-cell'));
+        selectedCell = cell;
+        cell.classList.add('focused-cell');
+    }
+
+    // Clean Enter Key
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'TD' && e.key === 'Enter') {
+            e.preventDefault();
+            e.target.blur();
+        }
+    });
+
+    function toggleHeaderRow() {
+        const tbl = document.querySelector('#tableTarget table');
+        tbl.classList.toggle('is-header-row');
+    }
+
+    function addRow() {
+        const tbl = document.querySelector('#tableTarget table');
+        const row = tbl.insertRow();
+        for(let i=0; i<tbl.rows[0].cells.length; i++) {
+            const c = row.insertCell();
+            c.contentEditable = "true";
+            c.onclick = function() { focusCell(this); };
+            c.innerText = "Data";
+        }
+    }
+
+    function deleteRow() {
+        const tbl = document.querySelector('#tableTarget table');
+        if(tbl.rows.length > 1) tbl.deleteRow(-1);
+    }
+
+    function addCol() {
+        const tbl = document.querySelector('#tableTarget table');
+        for(let i=0; i<tbl.rows.length; i++) {
+            const c = tbl.rows[i].insertCell();
+            c.contentEditable = "true";
+            c.onclick = function() { focusCell(this); };
+            c.innerText = "Data";
+        }
+    }
+
+    function deleteCol() {
+        const tbl = document.querySelector('#tableTarget table');
+        if(tbl.rows[0].cells.length > 1) {
+            for(let i=0; i<tbl.rows.length; i++) tbl.rows[i].deleteCell(-1);
+        }
+    }
+
+    function deleteRecord(id) {
+        event.stopPropagation();
+        if(confirm("Delete this table?")) {
+            tablesData = tablesData.filter(t => t.id !== id);
+            renderGallery();
+        }
+    }
+
+    function submitToExam() {
+        const title = document.getElementById('currentEditingTitle').innerText;
+        const html = document.querySelector('#tableTarget table').outerHTML;
+        window.parent.postMessage({
+            type: 'DRAWING', 
+            isTable: true,
+            html: `<div style="margin:15px 0;"><b>${title}</b><br>${html}</div>`
+        }, '*');
+        closeEditor();
+    }
+</script>
+</body>
+</html>

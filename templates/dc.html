@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Drawing Canvas - Assistive System</title>
+    <style>
+        :root { --primary: #3b82f6; --bg: #f8fafc; --border: #cbd5e1; --success: #22c55e; --danger: #ef4444; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        
+        .header-nav { width: 100%; max-width: 950px; display: flex; justify-content: center; margin-bottom: 20px; }
+        
+        .toolbar { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 950px; display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .tool-row { display: flex; justify-content: space-around; gap: 10px; flex-wrap: wrap; }
+        .tool-btn { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; flex: 1; min-width: 80px; display: flex; flex-direction: column; align-items: center; font-size: 14px; }
+        .tool-btn.active { background: #eff6ff; border-color: var(--primary); color: var(--primary); font-weight: bold; }
+        
+        canvas { background: white; border: 2px solid var(--border); border-radius: 8px; cursor: crosshair; box-shadow: 0 4px 12px rgba(0,0,0,0.05); max-width: 100%; }
+        
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; width: 100%; max-width: 950px; margin-top: 20px; }
+        .sketch-card { background: white; padding: 12px; border-radius: 10px; border: 1px solid var(--border); text-align: center; }
+        .sketch-card img { width: 100%; border: 1px solid #eee; margin: 8px 0; background: white; height: 120px; object-fit: contain; }
+        .btn-edit { background: #3b82f6; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; flex: 1; }
+        .btn-delete { background: #ef4444; color: white; border: none; padding: 6px; border-radius: 4px; cursor: pointer; flex: 1; }
+        .btn-add { width: 100%; background: #10b981; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="header-nav">
+    <h2 style="margin: 0; color: #1e293b; width: 100%; text-align: center;">Drawing Workspace</h2>
+</div>
+
+<div class="toolbar">
+    <div class="tool-row">
+        <button class="tool-btn" onclick="goBack()" style="background: #64748b; color: white; border: none;">⬅️<br>Back</button>
+        
+        <button class="tool-btn active" id="penTool" onclick="setTool('pen', this)">🖊️<br>Pen</button>
+        <button class="tool-btn" onclick="setTool('eraser', this)">🧽<br>Eraser</button>
+        <button class="tool-btn" onclick="setTool('text', this)"><b>T</b><br>Text</button>
+        <button class="tool-btn" onclick="setTool('rect', this)">▭<br>Square</button>
+        <button class="tool-btn" onclick="setTool('circle', this)">◯<br>Circle</button>
+        <button class="tool-btn" onclick="clearCanvas()">🗑️<br>Clear</button>
+        <button class="tool-btn" onclick="saveToList()" style="background: var(--primary); color: white; border: none;">💾<br>Save</button>
+    </div>
+
+    <div style="display:flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap;">
+        <input type="text" id="title" placeholder="Drawing Title..." style="flex:1; min-width: 200px; padding:10px; border:1px solid #cbd5e1; border-radius:6px;">
+        Color: <input type="color" id="color" value="#000000">
+        Thickness: <input type="range" id="size" min="1" max="20" value="3">
+    </div>
+</div>
+
+<canvas id="canvas" width="900" height="450"></canvas>
+<div class="gallery-grid" id="gallery"></div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const gallery = document.getElementById('gallery');
+    let drawing = false, tool = 'pen', startX, startY, snapshot;
+
+    // --- NAVIGATION ---
+    function goBack() { window.parent.postMessage({ type: 'NAVIGATE_BACK' }, '*'); }
+
+    // --- PERSISTENCE ---
+    function saveCanvasState() { localStorage.setItem('activeCanvas', canvas.toDataURL()); }
+
+    function saveGalleryState() {
+        const sketches = [];
+        document.querySelectorAll('.sketch-card').forEach(card => {
+            sketches.push({
+                title: card.querySelector('strong').innerText,
+                image: card.querySelector('img').src
+            });
+        });
+        localStorage.setItem('savedSketches', JSON.stringify(sketches));
+    }
+
+    window.onload = () => {
+        const savedCanvas = localStorage.getItem('activeCanvas');
+        if (savedCanvas) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = savedCanvas;
+        }
+        const savedSketches = JSON.parse(localStorage.getItem('savedSketches') || "[]");
+        savedSketches.reverse().forEach(s => createCard(s.title, s.image, false));
+    };
+
+    // --- TOOLS ---
+    function setTool(t, btn) {
+        tool = t;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    canvas.onmousedown = (e) => {
+        drawing = true;
+        startX = e.offsetX; startY = e.offsetY;
+        ctx.beginPath();
+        ctx.lineWidth = document.getElementById('size').value;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = (tool === 'eraser') ? '#ffffff' : document.getElementById('color').value;
+        ctx.fillStyle = ctx.strokeStyle;
+        snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    };
+
+    canvas.onmousemove = (e) => {
+        if (!drawing) return;
+        if (tool === 'pen' || tool === 'eraser') {
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        } else {
+            ctx.putImageData(snapshot, 0, 0);
+            if (tool === 'rect') {
+                ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+            } else if (tool === 'circle') {
+                let r = Math.sqrt(Math.pow(e.offsetX - startX, 2) + Math.pow(e.offsetY - startY, 2));
+                ctx.beginPath(); ctx.arc(startX, startY, r, 0, 2 * Math.PI); ctx.stroke();
+            }
+        }
+    };
+
+    canvas.onmouseup = (e) => {
+        drawing = false;
+        if (tool === 'text') {
+            const userText = prompt("Type your text:");
+            if (userText) {
+                ctx.font = `${document.getElementById('size').value * 5}px Arial`;
+                ctx.fillText(userText, e.offsetX, e.offsetY);
+            }
+        }
+        saveCanvasState();
+    };
+
+    function clearCanvas() { 
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        saveCanvasState();
+    }
+
+    function saveToList() {
+        const dataURL = canvas.toDataURL();
+        const title = document.getElementById('title').value || "Untitled";
+        createCard(title, dataURL, true);
+        document.getElementById('title').value = "";
+    }
+
+    function createCard(title, dataURL, shouldSave) {
+        const div = document.createElement('div');
+        div.className = 'sketch-card';
+        div.innerHTML = `
+            <strong>${title}</strong>
+            <img src="${dataURL}">
+            <div style="display:flex; gap:5px; margin-bottom:5px;">
+                <button class="btn-edit" onclick="editSketch('${dataURL}')">Edit</button>
+                <button class="btn-delete" onclick="deleteSketch(this)">Delete</button>
+            </div>
+            <button class="btn-add" onclick="sendToExam('${dataURL}')">Add to Exam</button>
+        `;
+        gallery.prepend(div);
+        if(shouldSave) saveGalleryState();
+    }
+
+    function deleteSketch(btn) {
+        btn.parentElement.parentElement.remove();
+        saveGalleryState();
+    }
+
+    function editSketch(data) {
+        const img = new Image();
+        img.onload = () => {
+            clearCanvas();
+            ctx.drawImage(img, 0, 0);
+            saveCanvasState();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+            setTool('pen', document.getElementById('penTool'));
+        };
+        img.src = data;
+    }
+
+    function sendToExam(data) {
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'DRAWING', image: data }, '*');
+        }
+    }
+    // Notify parent that DC loaded and is ready
+    try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'DC_LOADED' }, '*'); } catch(e) {}
+</script>
+</body>
+</html>
